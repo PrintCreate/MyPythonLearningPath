@@ -1,8 +1,8 @@
 #coding:utf-8
-from web3.DataOutput import DataOutput
-from web3.HtmlParser import HtmlParser
-from web3.HtmlDownloader import HtmlDownloader
-from web3.URLManager import UrlManager
+from old.web3.DataOutput import DataOutput
+from old.web3.HtmlParser import HtmlParser
+from old.web3.HtmlDownloader import HtmlDownloader
+from old.web3.URLManager import UrlManager
 
 class SpiderMan(object):
     def __init__(self):
