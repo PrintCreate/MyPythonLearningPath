@@ -4,20 +4,37 @@ import requests
 import json
 import base64
 from mySpider import login_weibo2
+from mySpider.items import MyspiderItem
+from urllib import request
+import re
+import os
+from retry import retry
+
 
 class WeiboSpider(scrapy.Spider):
-    username = 'jsb123000@qq.com' # 微博账号
-    password = 'jsb520572123' # 微博密码
-    uid='5627839527'
+    # 用weibo 取setting 开启 DEFAULT_REQUEST_HEADERS
+    username = 'jsb123000@qq.com'  # 微博账号
+    password = 'jsb520572123'  # 微博密码
+    uid = '5627839527'
     name = 'weibo'
-    cookies =None
-    straturls=[]
-    allowed_domains = ['weibo.cn','weibo.com','sina.com.cn']
-    header={"User-Agen":"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36"}
+    cookies = None
+    straturls = []
+    start_urls = []
+    allowed_domains = ['weibo.cn', 'm.weibo.cn']
+    base_url = 'https://weibo.cn'
+    user_url = 'https://m.weibo.cn/api/container/getIndex?uid={uid}&luicode=10000011&lfid=231093_-_selffollowed&type=uid&value={uid}&containerid=100505{uid}'
+    weibo_url = 'https://m.weibo.cn/api/container/getIndex?uid={uid}&luicode=10000011&lfid=231093_-_selffollowed&type=uid&value={uid}&containerid=107603{uid}'
+
+    # L = []
+    # for root, dirs, files in os.walk('d://pic2'):
+    #     for file in files:
+    #         # if os.path.splitext(file)[1] == '.jpg':
+    #         L.append(os.path.splitext(file)[0])
+    # header={"User-Agen":"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36"}
     def start_requests(self):
         # 这个方法当下载器开始发起请求之前被调用
         # 在这个方法我们可以把下载器截获，改变其原来的请求方式
-        login_url = "https://passport.weibo.cn/sso/login" # post请求的接口url
+        login_url = "https://passport.weibo.cn/sso/login"  # post请求的接口url
         # post提交的数据
         data = {
             'username': self.username,
@@ -37,45 +54,140 @@ class WeiboSpider(scrapy.Spider):
             'hfp': ''
         }
 
-        yield scrapy.FormRequest(url=login_url,formdata=data,callback=self.parse_login)
+        yield scrapy.FormRequest(url=login_url,
+                                 formdata=data,
+                                 callback=self.parse_login)
 
     def parse_login(self, response):
-
-        # print(response.text)
         # 判断登录是否成功
         if json.loads(response.text)["retcode"] == 20000000:
             print("登录成功！")
             # 访问主页
-            main_url = 'https://weibo.cn/'+self.uid+'/follow'
-            yield scrapy.Request(url=main_url,callback=self.parse_info)
+            main_url = 'https://m.weibo.cn/api/container/getIndex?containerid=231093_-_selffollowed'
+            #main_url ='https://m.weibo.cn/' + self.uid + '/follow'
+            yield scrapy.Request(url=main_url, callback=self.parse_guanZhu)
 
         else:
             print("登录失败！")
 
+    @retry(tries=5, delay=5)
+    def parse_guanZhu(self, response):
+        result = json.loads(response.text)
+        if result.get('ok') and result.get('data').get('cards') and len(
+                result.get('data').get('cards')) and result.get('data').get(
+                    'cards')[-1].get('card_group'):
+            follows = result.get('data').get('cards')[-1].get('card_group')
+            for follow in follows:
+                # auth = follow.get('desc1')
+                auth = follow.get('user').get('screen_name')
+                uid = follow.get('user').get('id')
+                print(auth, uid)
+                request = scrapy.Request(self.weibo_url.format(uid=uid),
+                                         callback=self.parse_info)
+                request.meta['auth'] = auth
+                request.meta['uid'] = uid
+                yield request
+
     def parse_info(self, response):
-        # print(response.text)
-        papers=response.xpath('//tr')
-        for paper in papers:
-            url=paper.xpath('./td[2]/a[1]/@href').extract_first()
-            # title=paper.xpath('.//*[@class="postTitle"]/a/text()').extract()[0]
-            # time=paper.xpath('.//*[@class="dayTitle"]/a/text()').extract()[0]
-            # content=paper.xpath('.//*[@class="c_b_p_desc"]/text()').extract()[0]
-            # print(url,title,time,content)
-            self.straturls.append(url)
-            # print(url)
-        if response.xpath('//*[@id="pagelist"]/form/div/a/text()').extract()[0] == u'下页':
-          next_href = response.xpath('//*[@id="pagelist"]/form/div/a/@href').extract()[0]
-          yield scrapy.Request('https://weibo.cn' + next_href, callback=self.parse_info)
-        else:
-          yield self.parse()
-        # nextpage=response.xpath('//div[(@id,"pagelist")]//from//div//a[1]//@href').extract_first()
-        # href=nextpage.xpath('.
-        # print(nextpage)
-    def parse(self):
-        print(self.straturls)
-        
+        # &since_id={since_id}
+        result = json.loads(response.text)
+        if result.get('ok') and result.get('data').get('cards'):
+            since_id = result.get('data').get('cardlistInfo').get('since_id')
+            auth = response.meta['auth']
+            uid = response.meta['uid']
+            weibos = result.get('data').get('cards')
+            for weibo in weibos:
+                mblog = weibo.get('mblog')
+                if mblog and mblog.get('pics'):
+                    pics = mblog.get('pics')
+                    for pic in pics:
+                        picurl = pic.get('large').get('url')
+                        print(since_id, auth, picurl)
+                        path = 'd://pic2//' + auth + '//' + re.sub(
+                            'https://wx\\d.sinaimg.cn/large/', '', picurl)
+                        if not os.path.exists(path):
+                            item = MyspiderItem()
+                            item['auth'] = auth
+                            item['images_urls'] = [picurl]
+                            yield item
+                            url = self.weibo_url.format(
+                                uid=uid) + '&since_id=' + str(since_id)
+                            request = scrapy.Request(url,
+                                                     callback=self.parse_info)
+                            request.meta['auth'] = auth
+                            request.meta['uid'] = uid
+                            yield request
 
 
+# https://m.weibo.cn/u/2974645912?uid=2974645912&luicode=10000011&lfid=231093_-_selffollowed
+# https://m.weibo.cn/api/container/getIndex?uid=2974645912&luicode=10000011&lfid=231093_-_selffollowed&type=uid&value=2974645912&containerid=1005052974645912
+# https://m.weibo.cn/api/container/getIndex?uid=2974645912&luicode=10000011&lfid=231093_-_selffollowed&type=uid&value=2974645912&containerid=1076032974645912
+# https://m.weibo.cn/api/container/getIndex?uid=2974645912&luicode=10000011&lfid=231093_-_selffollowed&type=uid&value=2974645912&containerid=1076032974645912&since_id=4374040841673393
+# @retry(tries=5, delay=5)
+# def parse_info(self, response):
+#     result = json.loads(response.text)
+#     print(result)
+#     papers = response.xpath('//tr')
+#     for paper in papers:
+#         url = paper.xpath('./td[2]/a[1]//@href').extract_first()
+#         self.straturls.append(url)
+#     if response.xpath('//*[@id="pagelist"]/form/div/a//text()').extract(
+#     )[0] == u'下页':
+#         next_href = response.xpath(
+#             '//*[@id="pagelist"]/form/div/a//@href').extract()[0]
+#         yield scrapy.Request(self.base_url + next_href,
+#                              callback=self.parse_info)
+#     else:
+#         for url in self.straturls:
+#             yield scrapy.Request(url, callback=self.parse)
+
+# # 取所有微博图片链接
+# @retry(tries=5, delay=5)
+# def parse(self, response):
+#     # name = response.xpath('//title//text()').extract()[0]
+#     # print(name)
+#     papers = response.xpath(
+#         '//a[re:test(@href,"^https://weibo.cn/mblog/pic/[a-zA-Z0-9?]+rl=0$")]//@href'
+#     ).extract()
+#     for href in papers:
+#         yield scrapy.Request(
+#             href,
+#             callback=self.view_ListPic,
+#         )
+
+# # 进入微博组图
+# @retry(tries=5, delay=5)
+# def view_ListPic(self, response):
+#     source_Pic = response.xpath('//img//@src').extract()[0]
+#     picName = re.sub('http://ww\\d.sinaimg.cn/bmiddle/', '', source_Pic)
+#     if picName not in self.L:
+#         request.urlretrieve(source_Pic, 'd://pic//' + picName)
+#         self.L.append(picName)
+#     # item = MyspiderItem()
+#     # if source_Pic not in item:
+#     #     item['title'] = 's'  #name
+#     #     item['src'] = source_Pic
+#     #     print(item)
+#     #     yield item
+#     try:
+#         page = response.css('body > div:nth-child(4) > div:nth-child(4)')
+#         if page:
+#             if page.xpath('./a[1]//text()').extract()[0] == '下一张':
+#                 next_page = response.xpath(
+#                     '//div[@class="tc"][last()]/a[1]//@href').extract()[0]
+#                 yield scrapy.Request(self.base_url + next_page,
+#                                      callback=self.view_ListPic)
+#     except:
+#         page = response.css('body > div:nth-child(3) > div:nth-child(4)')
+#         if page:
+#             if page.xpath('./a[1]//text()').extract()[0] == '下一张':
+#                 next_page = response.xpath(
+#                     '//div[@class="tc"][last()]/a[1]//@href').extract()[0]
+#                 yield scrapy.Request(self.base_url + next_page,
+#                                      callback=self.view_ListPic)
+
+# def downLoadPic(self, response):
+#     print(response.text())
 
     '''
     weibo.com
@@ -144,6 +256,3 @@ class WeiboSpider(scrapy.Spider):
     #     for weibo in weibo_list:
     #         div = weibo.xpath("./div")
     #         print(div)
-
-
-

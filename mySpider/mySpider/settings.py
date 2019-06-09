@@ -13,20 +13,26 @@ BOT_NAME = 'mySpider'
 
 SPIDER_MODULES = ['mySpider.spiders']
 NEWSPIDER_MODULE = 'mySpider.spiders'
-
-
+IMAGES_STORE = 'D:\\pic2'
+IMAGES_URLS_FIELD = 'images_urls'
+IMAGES_RESULT_FIELD = 'images'
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'mySpider (+http://www.yourdomain.com)'
 DEFAULT_REQUEST_HEADERS = {
-    'Accept': '*/*',
-    'Accept-Language': 'zh-CN,zh;q=0.9',
-    'Content-Type': 'application/x-www-form-urlencoded',
-    'Connection': 'keep-alive',
-    # 'Origin': 'https://passport.weibo.cn',
-    # 'Referer': 'https://passport.weibo.cn/signin/login?entry=mweibo&r=https%3A%2F%2Fweibo.cn%2F%3Fluicode%3D20000174&backTitle=%CE%A2%B2%A9&vt='
-
+    'Accept':
+    '*/*',
+    'Accept-Language':
+    'zh-CN,zh;q=0.9',
+    'Content-Type':
+    'application/x-www-form-urlencoded',
+    'Connection':
+    'keep-alive',
+    'Origin':
+    'https://passport.weibo.cn',
+    'Referer':
+    'https://passport.weibo.cn/signin/login?entry=mweibo&r=https%3A%2F%2Fweibo.cn%2F%3Fluicode%3D20000174&backTitle=%CE%A2%B2%A9&vt='
 }
-MY_USER_AGENT= [
+MY_USER_AGENT = [
     "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; AcooBrowser; .NET CLR 1.1.4322; .NET CLR 2.0.50727)",
     "Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0; Acoo Browser; SLCC1; .NET CLR 2.0.50727; Media Center PC 5.0; .NET CLR 3.0.04506)",
     "Mozilla/4.0 (compatible; MSIE 7.0; AOL 9.5; AOLBuild 4337.35; Windows NT 5.1; .NET CLR 1.1.4322; .NET CLR 2.0.50727)",
@@ -62,7 +68,7 @@ MY_USER_AGENT= [
     "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.64 Safari/537.11",
     "Mozilla/5.0 (X11; U; Linux x86_64; zh-CN; rv:1.9.2.10) Gecko/20100922 Ubuntu/10.10 (maverick) Firefox/3.6.10",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36",
-    ]
+]
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
 
@@ -99,13 +105,13 @@ DOWNLOAD_DELAY = 3
 # See https://doc.scrapy.org/en/latest/topics/downloader-middleware.html
 # DOWNLOADER_MIDDLEWARES = {
 #     'mySpider.middlewares.MyspiderDownloaderMiddleware': 543,
-#     'scrapy.downloadermiddleware.useragent.UserAgentMiddleware': None, 
+#     'scrapy.downloadermiddleware.useragent.UserAgentMiddleware': None,
 #     'mySpider.middlewares.MyUserAgentMiddleware': 400,
-#     } 
-DOWNLOADER_MIDDLEWARES = {
-   'scrapy.downloadermiddleware.useragent.UserAgentMiddleware': None, 
-    'mySpider.middlewares.MyUserAgentMiddleware': 400,
-}
+#     }
+# DOWNLOADER_MIDDLEWARES = {
+#     'scrapy.downloadermiddleware.useragent.UserAgentMiddleware': None,
+#     'mySpider.middlewares.MyUserAgentMiddleware': 400,
+# }
 # Enable or disable extensions
 # See https://doc.scrapy.org/en/latest/topics/extensions.html
 #EXTENSIONS = {
@@ -114,9 +120,10 @@ DOWNLOADER_MIDDLEWARES = {
 
 # Configure item pipelines
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
-#    'mySpider.pipelines.MyspiderPipeline': 300,
-#}
+ITEM_PIPELINES = {
+    'mySpider.pipelines.MyspiderPipeline': 1,
+    # 'scrapy.pipelines.images.ImagesPipeline': 2,
+}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://doc.scrapy.org/en/latest/topics/autothrottle.html
